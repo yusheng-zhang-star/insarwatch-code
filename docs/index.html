@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>insarwatch-code — technical reference for seven geotechnical calculators</title>
+<meta name="description" content="Technical reference for seven dependency-free Python calculators covering soil phase relations, shear strength, Atterberg limits, slope stability, InSAR alert thresholds, level-loop closure and circular curves.">
+<style>
+  :root { --ink:#1b2730; --muted:#5a6b72; --line:#d7e0e4; --accent:#0a66c2; --wash:#f4f7f9; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#fff; color:var(--ink);
+         font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
+  header { background:var(--wash); border-bottom:1px solid var(--line); padding:38px 20px 30px; }
+  .wrap { max-width:900px; margin:0 auto; }
+  h1 { font-size:30px; margin:0 0 6px; letter-spacing:-.4px; }
+  .tag { color:var(--muted); font-size:17px; margin:0 0 18px; }
+  nav a { color:var(--accent); text-decoration:none; margin-right:18px; font-size:14px; font-weight:600; }
+  nav a:hover { text-decoration:underline; }
+  main { padding:34px 20px 60px; }
+  section { margin-bottom:44px; }
+  h2 { font-size:23px; margin:0 0 14px; padding-bottom:8px; border-bottom:1px solid var(--line); }
+  h3 { font-size:19px; margin:30px 0 8px; }
+  h4 { font-size:15px; margin:18px 0 5px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; }
+  p { margin:0 0 12px; }
+  code, pre { font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:14px; }
+  code { background:var(--wash); padding:1px 5px; border-radius:3px; }
+  pre { background:var(--wash); border:1px solid var(--line); border-radius:6px;
+        padding:14px 16px; overflow-x:auto; line-height:1.55; }
+  pre code { background:none; padding:0; }
+  table { border-collapse:collapse; width:100%; font-size:14px; margin:10px 0 16px; }
+  th, td { border:1px solid var(--line); padding:8px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--wash); }
+  a { color:var(--accent); }
+  .note { border-left:3px solid var(--accent); background:var(--wash); padding:12px 16px; margin:14px 0; }
+  .limits { color:var(--muted); font-size:15px; }
+  dt { font-weight:700; margin-top:18px; }
+  dd { margin:5px 0 0; color:#33444d; }
+  footer { border-top:1px solid var(--line); padding:22px 20px 34px; color:var(--muted); font-size:14px; }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do I need numpy, scipy or a virtual environment to run these modules?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Every module imports only the Python standard library math module and runs on Python 3.8 or newer. Clone the repository or copy one file into your project and run it directly."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I use the results in a commercial geotechnical report?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. The repository is MIT licensed, so you may use, modify and redistribute the code. You are responsible for the engineering judgement and for checking the calculations against your project requirements; the license covers the code, not the design."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Why do functions return error codes instead of raising exceptions or showing messages?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The same calculations back a Spanish-language website. Keeping the computation layer free of exceptions and of user-facing wording lets the interface choose the message, and keeps the modules usable in batch scripts where one bad row should not stop a whole run."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How close are the Python results to the online calculators?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "The agreement target is better than 0.1 percent for all seven modules. The slope-stability core is verified bit-identical against the JavaScript running on the live site, including the circle search and all three methods of slices."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are the InSAR velocity limits a norm or a standard I can cite as a requirement?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. They are screening values drawn from published InSAR slope-monitoring studies, not a code or regulation. There is no universal normative threshold. Set yellow and red from your project monitoring plan and the applicable local standard before using them for decisions."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does the slope module handle pore pressure, layered soil or seismic loading?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Pore-water pressure is assumed zero and the slope is a single homogeneous material, with no layers, surcharge, tension cracks or reinforcement. A pseudo-static seismic coefficient kh is supported as an optional argument; everything else is outside the model."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which units does the code expect?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Unit weights in kN per cubic metre, stresses in kPa, water content and saturation in percent, level differences in millimetres, distances in metres, angles in degrees, and a fixed water unit weight of 9.81 kN per cubic metre. The code does not convert units for you."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "How should I cite this repository in a paper or thesis?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Use the CITATION.cff file at the repository root, which generates a standard software citation. At minimum, include the repository URL, the version or commit you used, and the module name, so a reader can reproduce the exact arithmetic."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>insarwatch-code</h1>
+    <p class="tag">Technical reference for seven dependency-free Python calculators used in
+       geotechnical engineering, surveying and InSAR monitoring.</p>
+    <nav>
+      <a href="https://github.com/yusheng-zhang-star/insarwatch-code">Source on GitHub</a>
+      <a href="https://insarwatch.com">Online calculators (Spanish)</a>
+      <a href="https://github.com/yusheng-zhang-star/insarwatch-code/blob/main/CITATION.cff">Cite this repo</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section id="what">
+  <h2>What this repository is</h2>
+  <p>Field geotechnical work still runs on spreadsheets: one tab per soil layer,
+     Boussinesq formulas pasted from a textbook, unit conversions hidden inside
+     a cell, and nested <code>IF()</code> chains that nobody can audit six months
+     later. Two engineers given the same borehole log routinely produce different
+     numbers, and neither can show exactly how the result was obtained.</p>
+  <p>This repository is the opposite of that. It contains seven small Python
+     modules, each one a pure calculation with no state, no I/O beyond its own
+     worked example, and no third-party dependencies. You can copy a single file
+     into your own script, read every line in a few minutes, and reproduce every
+     digit by hand. The modules are the same algorithms that drive the free
+     online calculators at <a href="https://insarwatch.com">insarwatch.com</a>,
+     whose interface is in Spanish because the intended users are engineers in
+     Latin America and Spain.</p>
+  <p>The split is deliberate: the website is for a quick answer while you are on
+     site; this repository is for when the calculation has to go into a report, a
+     script, a peer review or a reproducible study. This English technical
+     reference documents the equations, the input contracts, the worked examples
+     and — just as importantly — the boundaries of what each module does
+     <em>not</em> do.</p>
+</section>
+
+<section id="design">
+  <h2>Design decisions</h2>
+  <h3>Standard library only</h3>
+  <p>Every module imports <code>math</code> and nothing else. There is no
+     <code>numpy</code>, no <code>scipy</code>, no plotting stack and no package
+     install step. That is a practical constraint, not a stylistic one: a script
+     that must run on a site laptop, inside a CI job, or on a university server
+     five years from now should not depend on a resolver. It also means the
+     regression fits and the iterative solvers are visible in plain code rather
+     than hidden behind a library call.</p>
+
+  <h3>The error contract</h3>
+  <p>Functions return a dictionary on success and a dictionary with an
+     <code>error</code> key on invalid input, or <code>None</code> when the
+     geometry is impossible. They never raise for ordinary bad data, never print
+     to the console in library mode, and never contain user-facing text. Error
+     values are language-neutral codes such as <code>invalid_input</code>,
+     <code>insufficient_points</code> or <code>ip_negative</code>. That contract
+     exists because the same calculations are exposed through a Spanish web UI:
+     the browser layer decides what a person should read, while the calculation
+     layer stays free of wording that would need translating.</p>
+
+  <h3>Units are fixed, not inferred</h3>
+  <p>Nothing guesses units. Unit weights are kN/m³, stresses kPa, water content
+     and saturation are percentages, level differences are millimetres, distances
+     are metres, angles are degrees, and the unit weight of water is a fixed
+     <code>9.81 kN/m³</code>. Feeding feet, psi or radians will produce a
+     numerically valid but physically wrong answer. Convert before you call.</p>
+
+  <h3>Auditability over convenience</h3>
+  <p>Each module ends with an <code>if __name__ == "__main__"</code> block that
+     prints a hand-worked example with numbers you can check with a calculator.
+     The intermediate quantities — regressions residuals, slice geometry,
+     per-station deflections — are returned in the result dictionary rather than
+     discarded, so a reviewer can reconstruct the whole path from input to
+     answer.</p>
+</section>
+
+<section id="start">
+  <h2>Quick start</h2>
+<pre><code>git clone https://github.com/yusheng-zhang-star/insarwatch-code.git
+cd insarwatch-code
+python python/fases_suelo.py        # prints the worked example
+python python/slope_core.py         # prints the three factors of safety</code></pre>
+  <p>Or import a single function into your own code:</p>
+<pre><code>from fases_suelo import from_gsw
+
+r = from_gsw(2.70, 18.0, 15.0)   # Gs, gamma (kN/m3), w (%)
+print(r["e"], r["S"], r["gsat"])  # 0.6923  0.5850  19.67</code></pre>
+  <p>There is no packaging step and no entry point to configure. Add the
+     <code>python/</code> directory to your path, or copy the file you need.</p>
+</section>
+
+<section id="modules">
+  <h2>Module reference</h2>
+
+  <article>
+    <h3>1. <code>fases_suelo.py</code> — soil phase relations</h3>
+    <p>Turns the three quantities a laboratory actually reports into the ones a
+       design needs: void ratio, porosity, degree of saturation, and dry,
+       saturated and submerged unit weights.</p>
+    <h4>Inputs</h4>
+    <p><code>from_gsw(Gs, gamma, w)</code> with w in percent, or
+       <code>from_ges(Gs, e, S)</code> with S in percent. Any three independent
+       values determine the rest; these are the two triples used in practice.</p>
+    <h4>Equations</h4>
+<pre><code>gamma  = Gs * gw * (1 + w) / (1 + e)      gw = 9.81 kN/m3
+n      = e / (1 + e)
+S * e  = w * Gs
+gamma_d    = gamma / (1 + w)
+gamma_sat  = (Gs + e) * gw / (1 + e)
+gamma'     = gamma_sat - gw</code></pre>
+    <h4>Worked example</h4>
+    <p><code>Gs = 2.70, gamma = 18 kN/m³, w = 15 %</code> gives
+       <code>e = 0.6923</code>, <code>n = 0.4090</code>, <code>S = 0.5850</code>,
+       <code>gamma_d = 15.65</code>, <code>gamma_sat = 19.67</code> and
+       <code>gamma' = 9.86 kN/m³</code>.</p>
+    <p class="limits"><strong>Boundaries.</strong> A non-positive void ratio
+       returns <code>None</code> because the inputs are physically inconsistent.
+       Saturation above 1 is allowed through rather than silently clamped — it is
+       a useful signal that a lab value is wrong. The module performs no unit
+       conversion, no temperature correction to <code>gw</code>, and no
+       organic-soil or unsaturated adjustment.</p>
+  </article>
+
+  <article>
+    <h3>2. <code>shear_strength.py</code> — Mohr-Coulomb envelope</h3>
+    <p>Fits cohesion <code>c</code> and friction angle <code>phi</code> to direct
+       shear or triaxial test data by least squares, and returns
+       <code>R²</code>, per-point residuals and 95 % confidence intervals.</p>
+    <h4>Equations</h4>
+<pre><code>Direct shear:  tau = c + sigma_n * tan(phi)      (direct regression)
+Triaxial:      p = (sigma1 + sigma3) / 2
+               q = (sigma1 - sigma3) / 2
+               q = c * cos(phi) + p * sin(phi)</code></pre>
+    <p>Fitting in <code>p–q</code> space is the important detail: a triaxial
+       specimen gives a Mohr circle, not a point on the envelope, so treating
+       <code>sigma1</code> as shear stress and <code>sigma3</code> as normal
+       stress is a classic error this module avoids.</p>
+    <h4>Statistics</h4>
+    <p>The regression is computed in centred form. Confidence limits use the
+       0.975 quantile of Student's t for 1–30 degrees of freedom from a
+       hard-coded table, and 1.96 beyond 30. Nothing is sampled and nothing is
+       estimated numerically.</p>
+    <h4>Worked example</h4>
+    <p>Direct shear points <code>(100, 55), (200, 90), (300, 130), (400, 175)</code>
+       in kPa give approximately <code>c = 15 kPa</code> and
+       <code>phi = 21.8°</code> (<code>tan(phi) = 0.40</code>). A companion
+       triaxial set is printed by the same example block.</p>
+    <p class="limits"><strong>Boundaries.</strong> At least two points are
+       required; identical x-values return <code>None</code>. Triaxial specimens
+       with <code>sigma1 &lt; sigma3</code> are dropped, and a fitted
+       <code>sin(phi)</code> outside <code>(-1, 1)</code> returns
+       <code>None</code>. The intervals assume independent, roughly normal
+       residuals — a reasonable classroom assumption, not a substitute for
+       engineering judgement on three scattered specimens. Pore pressure and
+       effective-stress corrections are not applied; feed effective stresses if
+       that is what your envelope needs.</p>
+  </article>
+
+  <article>
+    <h3>3. <code>atterberg.py</code> — Atterberg limits from the flow curve</h3>
+    <p>Fits <code>w = a·log10(x) + b</code> by least squares and reads the liquid
+       limit off the fitted curve, then derives the plasticity and liquidity
+       indices and the position on the Casagrande chart.</p>
+    <h4>Equations and conventions</h4>
+<pre><code>Casagrande cup:  x = blow count N,      LL = w(N = 25)
+Fall cone 76 g:  x = penetration d (mm), LL = w(d = 20)
+IP = LL - LP                 IL = (w_n - LP) / IP
+A-line: IP = 0.73 * (LL - 20)   U-line: IP = 0.9 * (LL - 8)</code></pre>
+    <h4>Worked example</h4>
+    <p>Three points generated from <code>w = -10·log10(N) + b</code> with
+       <code>LL = 40 %</code> recover <code>LL = 40.0 %</code>,
+       <code>R² = 1.0000</code>; with <code>LP = 18</code> and
+       <code>w_n = 28</code> the module returns <code>IP = 22.0</code> and
+       <code>IL = 0.455</code>.</p>
+    <p class="limits"><strong>Boundaries.</strong> Rows with non-positive x or w
+       are discarded, fewer than two valid rows yields
+       <code>insufficient_points</code>, a negative plasticity index yields
+       <code>ip_negative</code>, and <code>IL</code> is <code>None</code> when
+       <code>IP</code> is effectively zero or no natural water content was
+       supplied. The module reports whether the point lies above the A-line and
+       whether it exceeds the U-line; it does <em>not</em> output a USCS symbol,
+       and it does not extrapolate beyond the measured range of the flow curve.</p>
+  </article>
+
+  <article>
+    <h3>4. <code>slope_core.py</code> — critical circular slip surface</h3>
+    <p>The largest module. It discretises a homogeneous slope into 24 vertical
+       slices and searches a grid of circle centres and radii for the minimum
+       factor of safety using three methods on the same geometry: Fellenius
+       (ordinary), simplified Bishop and Spencer (1967).</p>
+    <h4>What the solver actually does</h4>
+    <p>Fellenius sums resisting and driving forces directly, keeping the signed
+       slice-base angle. Bishop iterates a fixed point on
+       <code>m_alpha = cos(alpha) + tan(phi)·sin(alpha)/FS</code> for up to 200
+       iterations and rejects circles where <code>m_alpha</code> becomes
+       non-positive. Spencer performs a nested bisection: for each interslice
+       force angle <code>theta</code> in ±60° it solves horizontal force
+       equilibrium for <code>FS</code>, then bisects <code>theta</code> until
+       moment equilibrium is satisfied. To keep the cost sane, Spencer is only
+       evaluated on the 30 best Bishop circles, and a physical gate rejects a
+       Spencer result more than 1.3 times the Bishop value of the same circle.</p>
+    <p>An optional pseudo-static seismic coefficient <code>kh</code> enters all
+       three methods: Fellenius reduces the normal force by
+       <code>kh·W·sin(alpha)</code> and adds <code>kh·W·cos(alpha)</code> to the
+       driving force; Bishop adds the horizontal term to the driving force only;
+       Spencer adds <code>kh·W</code> to horizontal equilibrium and its moment to
+       the moment sum. Default <code>kh = 0</code> is static.</p>
+    <h4>Worked example</h4>
+    <p><code>search(H=8, beta=25°, gamma=18, c=50, phi=35°, step=2)</code> is a
+       deliberately stable slope; the module prints how many circles were tried
+       and the minimum FS from each method.</p>
+    <p class="limits"><strong>Boundaries — read this before using it in a
+       report.</strong> Pore-water pressure is taken as zero, the slope is a
+       single homogeneous dry material, there are no tension cracks, no surcharge,
+       no reinforcement, no layers and no 3D effects. The answer is only as good
+       as the grid <code>step</code>: a coarse step can miss the critical circle.
+       Spencer may return <code>None</code> when no sign change can be bracketed,
+       which is reported rather than replaced with a plausible-looking number.
+       This is a screening and teaching kernel, not a limit-equilibrium design
+       package and not a substitute for a geotechnical model.</p>
+  </article>
+
+  <article>
+    <h3>5. <code>alerta_umbral.py</code> — InSAR velocity screening</h3>
+    <p>Classifies a deformation velocity (mm/yr) and an optional acceleration
+       (mm/yr²) into green / yellow / red.</p>
+<pre><code>classify(velocity, acceleration=None, yellow=10, red=50)
+level = red if |v| >= red else (yellow if |v| >= yellow else green)
+acceleration trend: > 0.05 accelerating, < -0.05 decelerating
+accelerating: yellow -> red, and green at |v| >= 0.7*yellow -> yellow</code></pre>
+    <p>The acceleration rule reflects a real precursor pattern: a modest
+       velocity that is picking up speed is often more concerning than the same
+       velocity held steady. Worked example: <code>5 → green</code>,
+       <code>28 → yellow</code>, <code>80 → red</code>,
+       <code>(30, +10) → red</code>, <code>(8, +3) → yellow</code>.</p>
+    <p class="limits"><strong>Boundaries.</strong> The defaults of ±10 and
+       &gt;50 mm/yr come from the InSAR slope-monitoring literature
+       (Wasowski &amp; Bovenga 2014 and several SBAS case studies; the upper
+       value is associated with field-observed cracking and damage to roads).
+       They are <strong>screening values, not a code, standard or regulation</strong>.
+       There is no universal normative threshold — the governing values must come
+       from the project's monitoring plan and the applicable local standard. The
+       module does no time-series analysis, no atmospheric correction, no
+       coherence or spatial clustering, and no line-of-sight to vertical
+       conversion. It is a classifier, not an early-warning system.</p>
+  </article>
+
+  <article>
+    <h3>6. <code>nivelacion.py</code> — level-loop closure</h3>
+    <p>Computes the misclosure of a geometric levelling run, checks it against a
+       tolerance, distributes the correction and reports relative precision.</p>
+<pre><code>fh      = sum(dh) - dh_known          (closed loop: dh_known = 0)
+E       = k * sqrt(L)                 L in km, k in mm/sqrt(km), default 20
+v_i     = -fh * d_i / sum(d)          proportional to distance
+1:T     = |fh| / sum(d)
+passes  = |fh| <= E</code></pre>
+    <h4>Worked example</h4>
+    <p>Three legs of <code>+1000, -600, -395 mm</code> over
+       <code>200, 150, 250 m</code> give <code>fh = 5 mm</code>,
+       <code>E = 20·sqrt(0.6) = 15.49 mm</code> and <code>1:120</code>, so the
+       loop passes. The per-leg corrections are returned in
+       <code>corrected</code> for the field book.</p>
+    <p class="limits"><strong>Boundaries.</strong> Distribution is by distance
+       only, not by number of instrument setups. The default <code>k = 20</code>
+       corresponds to ordinary / fourth-order work; choose the value your
+       specification requires. This is a single-run closure check, not a
+       least-squares network adjustment, and it does not propagate variances,
+       refraction or curvature corrections.</p>
+  </article>
+
+  <article>
+    <h3>7. <code>curva_circular.py</code> — simple circular curve</h3>
+    <p>Given a deflection angle and a radius, returns the six curve elements and
+       a stakeout table by deflections.</p>
+<pre><code>T = R*tan(D/2)          E = R*(sec(D/2) - 1)
+L = R*D (D in radians)  C = 2R*sin(D/2)
+M = R*(1 - cos(D/2))    degree = 1145.9156 / R  (deg per 20 m chord)
+delta = l / (2R)        chord = 2R*sin(delta)</code></pre>
+    <h4>Worked example</h4>
+    <p><code>D = 60°, R = 100 m</code> gives <code>T = 57.74 m</code>,
+       <code>E = 15.47 m</code>, <code>L = 104.72 m</code>,
+       <code>C = 100.00 m</code>, <code>M = 13.40 m</code> and
+       <code>D = 11.46°/20 m</code>. The stakeout loop emits full 20 m stations
+       and then the final fractional station at <code>L</code>, so the endpoint
+       is never dropped.</p>
+    <p class="limits"><strong>Boundaries.</strong> Requires
+       <code>0 &lt; D &lt; 180°</code> and <code>R &gt; 0</code>. Simple circular
+       curves only: no transition spirals, no superelevation, no compound or
+       reverse curves, and no conversion into coordinates or azimuths. Output
+       is a table of arc distances, deflection angles and chords, not a setting-out
+       file for a total station.</p>
+  </article>
+</section>
+
+<section id="verification">
+  <h2>How the numbers are verified</h2>
+  <p>There is no black box. Every module ships a worked example in its
+     <code>__main__</code> block whose intermediate values are written out in the
+     comments, so you can check the arithmetic independently. Running the file
+     prints the result; reading it shows the derivation.</p>
+  <p>The website calculators are implemented in JavaScript and the repository
+     modules in Python. They are kept deliberately independent: the same formulas
+     are written twice, in two languages, and their outputs are compared. The
+     slope-stability core is verified bit-identical against the JavaScript that
+     runs on the live site — the same circle grid, the same slice geometry and
+     the same Fellenius, Bishop and Spencer implementations. Across all seven
+     modules the published agreement target is better than 0.1 %.</p>
+  <p>The consolidated hand calculations live in
+     <code>examples/verification.md</code>. If you change a formula, change both
+     implementations and update that file; a pull request that only changes one
+     side will be asked to reconcile them.</p>
+  <div class="note">If a result looks wrong, check the units first. Almost every
+     disagreement between this code and a spreadsheet is a percent-versus-ratio
+     or degree-versus-radian conversion, not a formula error.</div>
+</section>
+
+<section id="thresholds">
+  <h2>Why the InSAR thresholds are labelled as screening values</h2>
+  <p>Searching for a single normative velocity limit for InSAR slope monitoring
+     does not produce one: published values are study-specific and depend on the
+     sensor, the time window, the geometry and what is being protected. The
+     module therefore ships literature-derived defaults — roughly ±10 mm/yr as a
+     stable/unstable boundary and above 50 mm/yr as a level associated with
+     observed damage — and says plainly on the tool page that they are not a
+     standard.</p>
+  <p>This is an unusual thing to put in a README, but it matters for anyone
+     citing the code. A calculator that quietly presents a literature value as a
+     legal limit is worse than no calculator. The thresholds are parameters you
+     are expected to replace with the ones in your monitoring plan, which is why
+     <code>yellow</code> and <code>red</code> are arguments rather than
+     constants you have to edit.</p>
+</section>
+
+<section id="faq">
+  <h2>Frequently asked questions</h2>
+  <dl>
+    <dt>Do I need numpy, scipy or a virtual environment to run these modules?</dt>
+    <dd>No. Every module imports only the Python standard library math module and runs on Python 3.8 or newer. Clone the repository or copy one file into your project and run it directly.</dd>
+
+    <dt>Can I use the results in a commercial geotechnical report?</dt>
+    <dd>Yes. The repository is MIT licensed, so you may use, modify and redistribute the code. You are responsible for the engineering judgement and for checking the calculations against your project requirements; the license covers the code, not the design.</dd>
+
+    <dt>Why do functions return error codes instead of raising exceptions or showing messages?</dt>
+    <dd>The same calculations back a Spanish-language website. Keeping the computation layer free of exceptions and of user-facing wording lets the interface choose the message, and keeps the modules usable in batch scripts where one bad row should not stop a whole run.</dd>
+
+    <dt>How close are the Python results to the online calculators?</dt>
+    <dd>The agreement target is better than 0.1 percent for all seven modules. The slope-stability core is verified bit-identical against the JavaScript running on the live site, including the circle search and all three methods of slices.</dd>
+
+    <dt>Are the InSAR velocity limits a norm or a standard I can cite as a requirement?</dt>
+    <dd>No. They are screening values drawn from published InSAR slope-monitoring studies, not a code or regulation. There is no universal normative threshold. Set yellow and red from your project monitoring plan and the applicable local standard before using them for decisions.</dd>
+
+    <dt>Does the slope module handle pore pressure, layered soil or seismic loading?</dt>
+    <dd>Pore-water pressure is assumed zero and the slope is a single homogeneous material, with no layers, surcharge, tension cracks or reinforcement. A pseudo-static seismic coefficient kh is supported as an optional argument; everything else is outside the model.</dd>
+
+    <dt>Which units does the code expect?</dt>
+    <dd>Unit weights in kN per cubic metre, stresses in kPa, water content and saturation in percent, level differences in millimetres, distances in metres, angles in degrees, and a fixed water unit weight of 9.81 kN per cubic metre. The code does not convert units for you.</dd>
+
+    <dt>How should I cite this repository in a paper or thesis?</dt>
+    <dd>Use the CITATION.cff file at the repository root, which generates a standard software citation. At minimum, include the repository URL, the version or commit you used, and the module name, so a reader can reproduce the exact arithmetic.</dd>
+  </dl>
+</section>
+
+<section id="cite">
+  <h2>Citing and contributing</h2>
+  <p>If you publish results obtained with these modules, cite the repository
+     using <a href="https://github.com/yusheng-zhang-star/insarwatch-code/blob/main/CITATION.cff">CITATION.cff</a>
+     and state which version you ran. New calculators are welcome: prefer
+     stdlib-only Python, keep the language-neutral error-code contract, add a
+     hand-worked example and link the matching online tool. The issue templates
+     in the repository cover both a calculation proposal and a discrepancy
+     report.</p>
+  <p>MIT licensed. The Spanish online tools remain free at
+     <a href="https://insarwatch.com">insarwatch.com</a>.</p>
+</section>
+
+</main>
+<footer>
+  <div class="wrap">insarwatch-code — MIT — technical reference, not a design
+  manual. Verify against your project specification before use.</div>
+</footer>
+</body>
+</html>

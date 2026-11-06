@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you publish results obtained with these modules, please cite this repository."
+title: "insarwatch-code"
+abstract: >-
+  Dependency-free Python calculators for geotechnical engineering, surveying and
+  InSAR monitoring. Seven stdlib-only modules that reproduce the free online
+  calculators at insarwatch.com to better than 0.1 %.
+type: software
+authors:
+  - name: "yusheng-zhang-star"
+    website: "https://github.com/yusheng-zhang-star"
+repository-code: "https://github.com/yusheng-zhang-star/insarwatch-code"
+url: "https://insarwatch.com"
+license: MIT
+version: 1.0.0
+date-released: 2026-11-07
+keywords:
+  - geotechnical engineering
+  - InSAR
+  - slope stability
+  - soil mechanics
+  - Atterberg limits
+  - surveying
+  - leveling

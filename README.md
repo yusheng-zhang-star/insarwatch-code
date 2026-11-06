@@ -52,10 +52,15 @@ Each file prints a worked example; the numbers must match the online calculator 
 
 ## Verification
 
-There is no `numpy` black box here. Each module ships a hand-worked verification inside
-its docstring (see `examples/`), so you can trace every number back to the formula. The
-slope-stability core is verified **bit-identical** against the JavaScript that runs on
-the live site — same circle search, same Fellenius / Bishop / Spencer factors.
+There is no `numpy` black box here. Every module prints a hand-worked verification when
+run directly (`python python/<name>.py`); the derivations are collected in
+[`examples/verification.md`](examples/verification.md), so you can trace every number
+back to the formula. The slope-stability core is verified **bit-identical** against the
+JavaScript that runs on the live site — same circle search, same Fellenius / Bishop /
+Spencer factors.
+
+Full technical reference — equations, inputs, worked examples, documented limits and
+FAQ: [insarwatch-code docs](https://yusheng-zhang-star.github.io/insarwatch-code/).
 
 ## Contributing
 
@@ -71,4 +76,5 @@ preferred (the target users are Latin American engineers), but English is welcom
 
 ## License
 
-[MIT](LICENSE) — use it freely; cite the source if you publish it.
+[MIT](LICENSE) — use it freely. If you publish results, cite this repository using
+[`CITATION.cff`](CITATION.cff) and state the version you used.
